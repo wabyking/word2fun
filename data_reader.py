@@ -129,12 +129,16 @@ class TimestampledWord2vecDataset(Dataset):
         # self.input_file = open(data.inputFileName, encoding="utf8")
         self.time_scale = time_scale
         if input_text is None:
+            print(" read text: {}".format(data.input_text))
             self.input_file = open(data.input_text, encoding="utf8")
         else:
+            print(" read text: {}".format(input_text))
             self.input_file = open(input_text, encoding="utf8")
+        self.sentence_length = len(self.input_file.readlines())
+        self.input_file.seek(0, 0)
 
     def __len__(self):
-        return self.data.sentences_count
+        return self.sentence_length
 
     def __getitem__(self, idx):
         while True:
@@ -145,7 +149,7 @@ class TimestampledWord2vecDataset(Dataset):
                 line = self.input_file.readline()
 
             if len(line) > 1:
-                words = line = tokenlize(line)
+                words  = tokenlize(line)
                 time, words = int(words[0]),words[1:]
                 time = time / self.time_scale
                 if len(words) > 1:

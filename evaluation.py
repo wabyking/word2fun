@@ -597,9 +597,10 @@ def ssd_test(model_path = "coha", timetypes = [],epoch = None):
 
 if __name__ == '__main__':
     timetypes = [ "word_mixed_fixed"      ] # "word_cos",  "word_linear", "word_mixed","word_mixed_fixed","word_sin"
-    # ssd_test("coha.txt.raw.token.train-decade-output",timetypes=timetypes)
-    yao_test(model_path="nyt_yao_tiny.txt.norm.train-output", timetypes=["word_mixed_fixed"])
-    yao_test(model_path="nyt_yao.txt.train-output", timetypes=["word_mixed_fixed"])
+    for epoch in range(5):
+        ssd_test("coha.txt.raw.token.train-decade-output",timetypes=timetypes,epoch=epoch)
+    # yao_test(model_path="nyt_yao_tiny.txt.norm.train-output", timetypes=["word_mixed_fixed"])
+    # yao_test(model_path="nyt_yao.txt.train-output", timetypes=["word_mixed_fixed"])
 
     # for epoch in range(5):
     #     yao_test(model_path="nyt_yao_tiny.txt.norm.train-output",timetypes=["word_mixed_fixed"], epoch=epoch)

@@ -139,13 +139,15 @@ class Word2VecTrainer:
             assert is_train == False, "wrong to load test data 2"
             assert filename is not None, "wrong to load test data 3"
             assert data is not None, "wrong to load test data 4"
+            print("load filenames as dev/test {}".format(filename))
         if not args.use_time:
             dataset = Word2vecDataset(data, input_text = filename, window_size= args.window_size)
         else:
             dataset = TimestampledWord2vecDataset(data,input_text = filename, window_size= args.window_size, time_scale=args.time_scale)
-
+        print("load data length: {}".format(len(dataset)))
         dataloader = DataLoader(dataset, batch_size=args.batch_size,
                                      shuffle=is_train, num_workers=0, collate_fn=dataset.collate) # shuffle if it is train
+
         if is_train:
             return data,dataloader
         else:
@@ -160,6 +162,7 @@ class Word2VecTrainer:
             if dataloader is None:
                 continue
             losses = []
+
             for i, sample_batched in enumerate(tqdm(dataloader)):
                 if len(sample_batched[0]) > 1:
 
@@ -190,7 +193,7 @@ class Word2VecTrainer:
         if not os.path.exists(self.output_file_name):
             os.mkdir(self.output_file_name)
         optimizer = optim.Adam(self.skip_gram_model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, len(self.dataloader)*self.iterations)
+        # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, len(self.dataloader)*self.iterations)
 
 
         with open("{}/log.txt".format(self.output_file_name,"log.txt"),"w") as f:
@@ -200,7 +203,7 @@ class Word2VecTrainer:
                 f.write(str(args) +"\n")
                 # optimizer = optim.SparseAdam(self.skip_gram_model.parameters(), lr=self.initial_lr)
 
-
+                # self.evaluation_loss(logger=f)
                 running_loss = 0.0
                 for i, sample_batched in enumerate(tqdm(self.dataloader)):
                     if len(sample_batched[0]) > 1:
@@ -221,7 +224,7 @@ class Word2VecTrainer:
 
                         loss.backward()
                         optimizer.step()
-                        scheduler.step()
+                        # scheduler.step()
 
 
 
