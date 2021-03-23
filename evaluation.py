@@ -52,10 +52,10 @@ def get_score(a,b):
     from scipy.stats import entropy
     score = mutual_info_score(a,b)
     _, p1 = np.unique(a,return_counts=True)
-    _, p2 = np.unique(a, return_counts=True)
+    _, p2 = np.unique(b, return_counts=True)
     p1 = p1 / p1.sum()
     p2 = p2 / p2.sum()
-    return score/entropy(p1)/entropy(p2) *2
+    return score/(entropy(p1) + entropy(p2)) *2
 
 def get_score1(a,b):
     from sklearn.metrics import f1_score,fbeta_score
@@ -598,12 +598,15 @@ def ssd_test(model_path = "coha", timetypes = [],epoch = None):
 if __name__ == '__main__':
     timetypes = [ "word_mixed_fixed"      ] # "word_cos",  "word_linear", "word_mixed","word_mixed_fixed","word_sin"
     # ssd_test("coha.txt.raw.token.train-decade-output",timetypes=timetypes)
-    for epoch in range(5):
-        yao_test(model_path="nyt_yao_tiny.txt.norm.train-output",timetypes=["word_mixed_fixed"], epoch=epoch)
-     #, "word_mixed"
-    for epoch in range(5):
-        yao_test(model_path="nyt_yao.txt.train-output",timetypes=["word_mixed_fixed"], epoch=epoch)
+    yao_test(model_path="nyt_yao_tiny.txt.norm.train-output", timetypes=["word_mixed_fixed"])
+    yao_test(model_path="nyt_yao.txt.train-output", timetypes=["word_mixed_fixed"])
 
+    # for epoch in range(5):
+    #     yao_test(model_path="nyt_yao_tiny.txt.norm.train-output",timetypes=["word_mixed_fixed"], epoch=epoch)
+    #  #, "word_mixed"
+    # for epoch in range(5):
+    #     yao_test(model_path="nyt_yao.txt.train-output",timetypes=["word_mixed_fixed"], epoch=epoch)
+    #
 
 
 
