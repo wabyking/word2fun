@@ -46,10 +46,10 @@ def clear_all():
 		print(filename)
 		clean_text(filename,filename + ".token")
 
-if len(sys.args) == 3:
-	clean_text(sys.args[1],sys.args[2])
-elif len(sys.args) == 2:
-	clean_text(sys.args[1], "{}.token.norm".format(sys.args[1]))
+if len(sys.argv) == 3:
+	clean_text(sys.argv[1],sys.argv[2])
+elif len(sys.argv) == 2:
+	clean_text(sys.argv[1], "{}.token.norm".format(sys.argv[1]))
 # clean_text("repubblica_1984_2019.txt", "repubblica.txt.norm")
 # clean_text("newsit.txt", "newsit.txt.norm")
 # clean_text("newsit.txt", "newsit.txt.norm")
@@ -57,7 +57,3 @@ elif len(sys.args) == 2:
 # clean_text("nyt_yao_tiny.txt", "nyt_yao_tiny.txt.norm",do_token =False)
 
 # clean_text("nyt.txt", "nyt.txt.norm")
-
-
-
-
