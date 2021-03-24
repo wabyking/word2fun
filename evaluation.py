@@ -628,14 +628,14 @@ class Word2VecChecker:
 
 
                     embedding = self.get_embedding_by_year(row.w1,row.y1).squeeze()
-                    candicates = self.get_embedding_in_a_year(sources, [row.y2]* len(targets), return_known_index=False)
+                    candicates = self.get_embedding_in_a_year(targets, [row.y2]* len(targets), return_known_index=False)
                     ranking_scores = np.dot(embedding, candicates.transpose())
                     ranks = np.argsort(ranking_scores)[::-1]
                     # print(ranks.shape)
 
                     target = targets_dict[row.w2]
-                    # print(row.y1, row.y2, row.w1, row.w2,target)
-                    # print(ranks)
+                    print(row.y1, row.y2, row.w1, row.w2,target)
+                    print(ranks)
                     first_index = -1
                     for index,rank in enumerate(ranks):
                         if rank == target:
