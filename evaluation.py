@@ -544,38 +544,46 @@ class Word2VecChecker:
 
         with open(log_filename, "w", encoding="utf-8") as f:
             for df in [df1,df2]:
+
                 df.y1 = df.y1.apply(lambda x: int(self.timer.get_index(int(x))))
                 df.y2 = df.y2.apply(lambda x: int(self.timer.get_index(int(x))))
                 length = len(df)
                 df = df[df.w1.isin(self.word2id) & df.w2.isin(self.word2id)].reset_index()
+
                 print(" {} rows with valid ones counted {}".format(length,len(df)))
                 df["keys"] = df.apply(lambda row: "{}-{}".format(row.w1, row.y1), axis=1)
-                items = df["keys"].unique()
+                df["values"] = df.apply(lambda row: "{}-{}".format(row.w2, row.y2), axis=1)
+
+                keys = df["keys"].unique()
+                values = df["values"].unique()
                 # print(items)
-                print( "include {} indivisual time".format(len(items)) )
-                items_dict = { item :i  for  i,item in enumerate(items) }
-
+                print( "include {} indivisual key".format(len(keys)) )
+                print("include {} indivisual value".format(len(values)))
+                keys_dict = { item :i  for  i,item in enumerate(keys) }
+                values_dict = { item :i  for  i,item in enumerate(values) }
                 # print(items_dict)
-                df["query"] = df.apply(lambda row: items_dict["{}-{}".format(row.w1, row.y1)], axis=1)
+                df["key"] = df.apply(lambda row: keys_dict["{}-{}".format(row.w1, row.y1)], axis=1)
 
-                df["value"] = df.apply(lambda row: items_dict["{}-{}".format(row.w2,row.y2)],axis = 1)
+                df["value"] = df.apply(lambda row: values_dict["{}-{}".format(row.w2,row.y2)],axis = 1)
 
-                words ,years = [ item.split("-")[0] for item in items ],[ int(item.split("-")[1]) for item in items ]
+                words ,years = [ item.split("-")[0] for item in keys ],[ int(item.split("-")[1]) for item in keys ]
+                words_values, years_values = [item.split("-")[0] for item in values], [int(item.split("-")[1]) for item in values]
                 # print(words,years)
                 embeddings = self.get_embedding_in_a_year(words, years, return_known_index=False)
-                ranking_scores = np.dot(embeddings, embeddings.transpose())
+                embeddings_values = self.get_embedding_in_a_year(words_values, years_values, return_known_index=False)
+                ranking_scores = np.dot(embeddings, embeddings_values.transpose())
                 ranking_indexes = [np.argsort(scores)[::-1] for scores in ranking_scores]
 
                 p1, mr, p3, p5, p10 = [], [], [], [], []
 
                 for i, row in tqdm(df.iterrows()):
-                    query = row.query
-                    key = row.value
-                    ranks = ranking_indexes[query]
+                    key = row.key
+                    value = row.value
+                    ranks = ranking_indexes[key]
 
                     first_index = -1
                     for index,rank in enumerate(ranks):
-                        if rank == key:
+                        if rank == value:
                             first_index = index
                             break
                     assert first_index != -1, "wrong for calculating MRR"
