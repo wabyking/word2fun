@@ -515,14 +515,14 @@ class Word2VecChecker:
 
                     first_index = -1
                     for index,ans in enumerate(answers):
-                        if ans ==1:
+                        if ans == 1:
                             first_index = index
                     assert first_index != -1, "wrong for calculating MRR"
 
                     p1.append(answers[0])
-                    p3.append(answers[:3].mean())
-                    p5.append(answers[:5].mean())
-                    p10.append(answers[:10].mean())
+                    p3.append(1 if answers[:3].sum() > 0 else 0)
+                    p5.append(1 if answers[:5].sum() > 0 else 0)
+                    p10.append(1 if answers[:10].sum() > 0 else 0)
                     mr.append(1/(first_index+1))
 
                 print(" {} triples include {}".format(len(df.groupby(["w1","y1", "w2"])), count ))
