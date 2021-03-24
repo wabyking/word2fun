@@ -461,7 +461,7 @@ class Word2VecChecker:
             f.write(line)
 
         return None
-    def alignment_quality_driver(self, log_filename= "alignment_quality.log"):
+    def alignment_quality_driver3(self, log_filename= "alignment_quality.log"):
         df1 = read_alignment("eval/yao/testset_2(1).csv")
         df2 = read_alignment("eval/yao/testset_2(2).csv")
 
@@ -618,15 +618,21 @@ class Word2VecChecker:
                 # sources = df["w1"].unique()
                 # targets = df["w2"].unique()
                 targets = self.word2id.keys()
+
+                targets = [word for word in self.word2id.keys() ]
+
                 targets_dict = {target:i for i,target in enumerate(targets)}
 
+                timed_embeddings = dict()
+                for year in df.y2.unique():
+                    timed_embeddings.setdefault(year,self.get_embedding_in_a_year(targets, [year]* len(targets), return_known_index=False))
                 p1, mr, p3, p5, p10 = [], [], [], [], []
 
                 for i, row in tqdm(df.iterrows()):
-
-
                     embedding = self.get_embedding_by_year(row.w1,row.y1).squeeze()
-                    candicates = self.get_embedding_in_a_year(targets, [row.y2]* len(targets), return_known_index=False)
+
+                    # timed_embeddings.setdefault(row.y2,self.get_embedding_in_a_year(targets, [row.y2]* len(targets), return_known_index=False))
+                    candicates = timed_embeddings[row.y2]
                     ranking_scores = np.dot(embedding, candicates.transpose())
                     ranks = np.argsort(ranking_scores)[::-1]
                     # print(ranks.shape)
