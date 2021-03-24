@@ -511,12 +511,17 @@ class Word2VecChecker:
                     ranking_indexes = np.argsort(ranking_scores)[::-1]
                     ranking_indexes = np.array(years)[ranking_indexes]
 
+                    print(gold_years, years)
+                    print(ranking_scores)
+                    print(ranking_indexes)
+                    print(answers)
                     answers =  np.array( [1 if index in  gold_years else 0 for rank, index in enumerate(ranking_indexes) ])
 
                     first_index = -1
                     for index,ans in enumerate(answers):
                         if ans == 1:
                             first_index = index
+                            break
                     assert first_index != -1, "wrong for calculating MRR"
 
                     p1.append(answers[0])
