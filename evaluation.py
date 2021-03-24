@@ -461,7 +461,6 @@ class Word2VecChecker:
             f.write(line)
 
         return None
-
     def alignment_quality_driver(self, log_filename= "alignment_quality.log"):
         df1 = read_alignment("eval/yao/testset_2(1).csv")
         df2 = read_alignment("eval/yao/testset_2(2).csv")
@@ -531,6 +530,62 @@ class Word2VecChecker:
                     mr.append(1/(first_index+1))
 
                 print(" {} triples include {}".format(len(df.groupby(["w1","y1", "w2"])), count ))
+                scores = [np.mean(s) for s in (mr, p1, p3, p5, p10)]
+                print(scores)
+                # exit()
+
+                line = "\t&".join(["{0:.4f}".format(s) for s in scores])
+                print(line )
+                f.write(line + "\n")
+
+    def alignment_quality_driver(self, log_filename= "alignment_quality.log"):
+        df1 = read_alignment("eval/yao/testset_2(1).csv")
+        df2 = read_alignment("eval/yao/testset_2(2).csv")
+
+        with open(log_filename, "w", encoding="utf-8") as f:
+            for df in [df1,df2]:
+                df.y1 = df.y1.apply(lambda x: int(self.timer.get_index(int(x))))
+                df.y2 = df.y2.apply(lambda x: int(self.timer.get_index(int(x))))
+                length = len(df)
+                df = df[df.w1.isin(self.word2id) & df.w2.isin(self.word2id)].reset_index()
+                print(" {} rows with valid ones counted {}".format(length,len(df)))
+                df["keys"] = df.apply(lambda row: "{}-{}".format(row.w1, row.y1), axis=1)
+                items = df["keys"].unique()
+                # print(items)
+                print( "include {} indivisual time".format(len(items)) )
+                items_dict = { item :i  for  i,item in enumerate(items) }
+
+                # print(items_dict)
+                df["query"] = df.apply(lambda row: items_dict["{}-{}".format(row.w1, row.y1)], axis=1)
+
+                df["value"] = df.apply(lambda row: items_dict["{}-{}".format(row.w2,row.y2)],axis = 1)
+
+                words ,years = [ item.split("-")[0] for item in items ],[ int(item.split("-")[1]) for item in items ]
+                # print(words,years)
+                embeddings = self.get_embedding_in_a_year(words, years, return_known_index=False)
+                ranking_scores = np.dot(embeddings, embeddings.transpose())
+                ranking_indexes = [np.argsort(scores)[::-1] for scores in ranking_scores]
+
+                p1, mr, p3, p5, p10 = [], [], [], [], []
+
+                for i, row in tqdm(df.iterrows()):
+                    query = row.query
+                    key = row.value
+                    ranks = ranking_indexes[query]
+
+                    first_index = -1
+                    for index,rank in enumerate(ranks):
+                        if rank == key:
+                            first_index = index
+                            break
+                    assert first_index != -1, "wrong for calculating MRR"
+
+                    p1.append(1 if first_index == 0 else 0)
+                    p3.append(1 if first_index < 3 else 0)
+                    p5.append(1 if first_index < 5 else 0)
+                    p10.append(1 if first_index < 10 else 0)
+                    mr.append(1 / (first_index + 1))
+
                 scores = [np.mean(s) for s in (mr, p1, p3, p5, p10)]
                 print(scores)
                 # exit()
