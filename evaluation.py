@@ -537,8 +537,7 @@ class Word2VecChecker:
                 line = "\t&".join(["{0:.4f}".format(s) for s in scores])
                 print(line )
                 f.write(line + "\n")
-
-    def alignment_quality_driver(self, log_filename= "alignment_quality.log"):
+    def alignment_quality_driver2(self, log_filename= "alignment_quality.log"):
         df1 = read_alignment("eval/yao/testset_2(1).csv")
         df2 = read_alignment("eval/yao/testset_2(2).csv")
 
@@ -573,7 +572,8 @@ class Word2VecChecker:
                 embeddings_values = self.get_embedding_in_a_year(words_values, years_values, return_known_index=False)
                 ranking_scores = np.dot(embeddings, embeddings_values.transpose())
                 ranking_indexes = [np.argsort(scores)[::-1] for scores in ranking_scores]
-
+                print(ranking_scores.shape)
+                # exit()
                 p1, mr, p3, p5, p10 = [], [], [], [], []
 
                 for i, row in tqdm(df.iterrows()):
@@ -584,6 +584,61 @@ class Word2VecChecker:
                     first_index = -1
                     for index,rank in enumerate(ranks):
                         if rank == value:
+                            first_index = index
+                            break
+                    assert first_index != -1, "wrong for calculating MRR"
+                    print(key, value, ranks, first_index)
+                    p1.append(1 if first_index == 0 else 0)
+                    p3.append(1 if first_index < 3 else 0)
+                    p5.append(1 if first_index < 5 else 0)
+                    p10.append(1 if first_index < 10 else 0)
+                    mr.append(1 / (first_index + 1))
+
+                scores = [np.mean(s) for s in (mr, p1, p3, p5, p10)]
+                print(scores)
+                # exit()
+
+                line = "\t&".join(["{0:.4f}".format(s) for s in scores])
+                print(line )
+                f.write(line + "\n")
+
+    def alignment_quality_driver(self, log_filename= "alignment_quality.log"):
+        df1 = read_alignment("eval/yao/testset_2(1).csv")
+        df2 = read_alignment("eval/yao/testset_2(2).csv")
+
+        with open(log_filename, "w", encoding="utf-8") as f:
+            for df in [df1,df2]:
+                df.y1 = df.y1.apply(lambda x: int(self.timer.get_index(int(x))))
+                df.y2 = df.y2.apply(lambda x: int(self.timer.get_index(int(x))))
+                length = len(df)
+                df = df[df.w1.isin(self.word2id) & df.w2.isin(self.word2id)].reset_index()
+
+                print(" {} rows with valid ones counted {}".format(length,len(df)))
+
+
+
+
+                # sources = df["w1"].unique()
+                targets = df["w2"].unique()
+                targets_dict = {target:i for i,target in enumerate(targets)}
+
+                p1, mr, p3, p5, p10 = [], [], [], [], []
+
+                for i, row in tqdm(df.iterrows()):
+
+
+                    embedding = self.get_embedding_by_year(row.w1,row.y1).squeeze()
+                    candicates = self.get_embedding_in_a_year(sources, [row.y2]* len(targets), return_known_index=False)
+                    ranking_scores = np.dot(embedding, candicates.transpose())
+                    ranks = np.argsort(ranking_scores)[::-1]
+                    # print(ranks.shape)
+
+                    target = targets_dict[row.w2]
+                    # print(row.y1, row.y2, row.w1, row.w2,target)
+                    # print(ranks)
+                    first_index = -1
+                    for index,rank in enumerate(ranks):
+                        if rank == target:
                             first_index = index
                             break
                     assert first_index != -1, "wrong for calculating MRR"
