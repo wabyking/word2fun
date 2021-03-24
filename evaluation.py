@@ -344,6 +344,16 @@ class Word2VecChecker:
             plt.savefig("{}.pdf".format(name), bbox_inches="tight", pad_inches=0)
             plt.close()
 
+    def get_embedding_by_year(self, word, year):
+        if word not in self.word2id:
+            return None
+        else:
+            word_tensor = torch.LongTensor([self.word2id[word]]).to(self.device)
+            time_tensor = torch.LongTensor([year]).to(self.device)
+            embedding = self.model.forward_embedding(word_tensor, time_tensor).cpu().data.numpy()
+            return embedding
+
+
     def get_embedding_in_a_year(self, words=None, year=0, word2id=None, return_known_index = False):
         if word2id is None:
             word2id = {value: key for key, value in self.id2word.items()}
@@ -420,7 +430,7 @@ class Word2VecChecker:
         df = pd.read_csv("eval/yao/testset_1.csv")
 
         df.real_year = df.year.apply(lambda x: int(self.timer.get_index(int(x)) ))
-        print(df.real_year.unique(),df.year.unique())
+        # print(df.real_year.unique(),df.year.unique())
 
         labels = set(df.label.unique())
         labels_mapping =  { label : index  for index,label in enumerate(labels) }
@@ -443,10 +453,10 @@ class Word2VecChecker:
             scores.append(score)
             scores.append(score1)
 
-        print(scores)
+        # print(scores)
 
         with open(log_filename, "w", encoding="utf-8") as f:
-            line = "\t".join(["{0:.4f}".format(s) for s  in scores]) + "\n"
+            line = "\t&".join(["{0:.4f}".format(s) for s  in scores]) + "\n"
             print(line)
             f.write(line)
 
@@ -462,53 +472,65 @@ class Word2VecChecker:
                 # df = df.reset_index()
                 # print(df)
                 # print(len(df))
-                df.real_year = df.y1.apply(lambda x: int(self.timer.get_index(int(x))))
-                embeddings, known_index = self.get_embedding_in_a_year(df.w1, df.real_year.tolist(), return_known_index=True)
+                df.y1 = df.y1.apply(lambda x: int(self.timer.get_index(int(x))))
+                # embeddings, known_index = self.get_embedding_in_a_year(df.w1, df.real_year.tolist(), return_known_index=True)
                 # print(max(known_index))
                 years = [self.timer.get_index(i) for i in range(1990, 2017, 1)]
                 # df = df[np.array(known_index)].reset_index()
-                print("candidate years {} ".format(years))
+                # print("candidate years {} ".format(years))
                 raw_len = len(df)
 
-                df = df[known_index].reset_index()
-                print("original len {} and finally {}".format(raw_len, len(df)))
+                # df = df[known_index].reset_index()
+                # print("original len {} and finally {}".format(raw_len, len(df)))
+                # print(df[ ~ known_index])
 
                 p1, mr, p3, p5, p10 = [], [], [], [], []
+                count = 0
+                for (w1,y1,w2), group in tqdm(df.groupby(["w1","y1", "w2"])):
+                # for i, row in tqdm(df.iterrows()):
+                #     print(group)
+                #     item = group[0]
+                #     w1,y1,w2 = group.w1.unique()[0], group.y1.unique()[0], group.w2.unique()[0]
+                    # print(w1,y1,w2)
 
-                for i, row in tqdm(df.iterrows()):
-                    embedding = embeddings[i]
 
-                    candicate, known_index = self.get_embedding_in_a_year([row["w2"]] * len(years), years,
-                                                                             return_known_index=True)
+                    if w1 not in self.word2id or w2 not in self.word2id:
+                        continue
+
+                    count += 1
+                    gold_years = [self.timer.get_index(int(y)) for y in group.y2.tolist()]
+                    embedding = self.get_embedding_by_year(w1,y1).squeeze()
+                    # print(embedding.shape)
+
+
+                    candicate = self.get_embedding_in_a_year([w2] * len(years), years,
+                                                                             return_known_index=False)
 
                     ranking_scores = np.dot(embedding, candicate.transpose())
+
                     ranking_indexes = np.argsort(ranking_scores)[::-1]
-                    # print(ranking_scores)
-                    # print(ranking_indexes)
+                    ranking_indexes = np.array(years)[ranking_indexes]
 
-                    gold_year = self.timer.get_index(int(row.y2))
-                    # print(gold_year)
-                    did_find = False
-                    for rank, index in enumerate(ranking_indexes):
-                        if index == gold_year:
-                            ranked_index = rank
-                            # print("bingo")
-                            did_find = True
-                    if not did_find:
-                        ranked_index = 100
-                    # print(ranked_index,gold_year)
+                    answers =  np.array( [1 if index in  gold_years else 0 for rank, index in enumerate(ranking_indexes) ])
 
-                    p1.append(1 if ranked_index < 1 else 0)
-                    p3.append(1 if ranked_index < 3 else 0)
-                    p5.append(1 if ranked_index < 5 else 0)
-                    p10.append(1 if ranked_index < 10 else 0)
-                    mr.append(1 / (ranked_index + 1) if ranked_index != 100 else 0)
+                    first_index = -1
+                    for index,ans in enumerate(answers):
+                        if ans ==1:
+                            first_index = index
+                    assert first_index != -1, "wrong for calculating MRR"
+
+                    p1.append(answers[0])
+                    p3.append(answers[:3].mean())
+                    p5.append(answers[:5].mean())
+                    p10.append(answers[:10].mean())
+                    mr.append(1/(first_index+1))
+
+                print(" {} triples include {}".format(len(df.groupby(["w1","y1", "w2"])), count ))
                 scores = [np.mean(s) for s in (mr, p1, p3, p5, p10)]
-                # print(scores)
+                print(scores)
                 # exit()
 
-                # exit()
-                line = "\t".join(["{0:.4f}".format(s) for s in scores])
+                line = "\t&".join(["{0:.4f}".format(s) for s in scores])
                 print(line )
                 f.write(line + "\n")
 
@@ -597,9 +619,15 @@ def ssd_test(model_path = "coha", timetypes = [],epoch = None):
 
 if __name__ == '__main__':
     timetypes = [ "word_mixed_fixed"      ] # "word_cos",  "word_linear", "word_mixed","word_mixed_fixed","word_sin"
-    for epoch in range(5):
-        ssd_test("coha.txt.raw.token.train-decade-output",timetypes=timetypes,epoch=epoch)
-    # yao_test(model_path="nyt_yao_tiny.txt.norm.train-output", timetypes=["word_mixed_fixed"])
+    files = ["nyt_yao_tiny.txt-20-nodecay-output", "nyt_yao_tiny.txt-20-100dim-output", "nyt_yao_tiny.txt-20-half-lr-output", "nyt_yao_tiny.txt-20-half-batchsize-output"]#, "nyt_yao_tiny.txt-20-phase-output"
+    # for file in files:
+    #     yao_test(model_path=file, timetypes=["word_mixed_fixed"])
+    yao_test("coha",timetypes=["word_mixed"] )
+    exit()
+    for file in files:
+        for epoch in range(20):
+            # ssd_test("coha.txt.raw.token.train-decade-output",timetypes=timetypes,epoch=epoch)
+            yao_test(model_path=file, timetypes=["word_mixed_fixed"], epoch=epoch)
     # yao_test(model_path="nyt_yao.txt.train-output", timetypes=["word_mixed_fixed"])
 
     # for epoch in range(5):
