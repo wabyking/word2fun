@@ -615,11 +615,9 @@ class Word2VecChecker:
 
                 print(" {} rows with valid ones counted {}".format(length,len(df)))
 
-
-
-
                 # sources = df["w1"].unique()
-                targets = df["w2"].unique()
+                # targets = df["w2"].unique()
+                targets = self.word2id.keys()
                 targets_dict = {target:i for i,target in enumerate(targets)}
 
                 p1, mr, p3, p5, p10 = [], [], [], [], []
