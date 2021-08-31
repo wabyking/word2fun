@@ -343,10 +343,10 @@ class DE(nn.Module):
         self.dense2 = nn.Linear(emb_dimension, emb_dimension)
         self.dense4 = nn.Linear(emb_dimension, emb_dimension)
         # word encoder
-        self.u_embeddings = nn.Embedding(emb_size, emb_dimension)
-        self.v_embeddings = nn.Embedding(emb_size, emb_dimension)
-        self.T = nn.Parameter(torch.randn(emb_dimension,emb_dimension,emb_dimension))
-        self.B = nn.Parameter(torch.randn(emb_dimension,emb_dimension))
+        self.u_embeddings = nn.Embedding(emb_size, emb_dimension*3)
+        self.v_embeddings = nn.Embedding(emb_size, emb_dimension*3)
+        self.T = nn.Parameter(torch.randn(emb_dimension,emb_dimension,emb_dimension*3))
+        self.B = nn.Parameter(torch.randn(emb_dimension,emb_dimension*3))
 
         initrange = 1.0 / self.emb_dimension
         init.uniform_(self.u_embeddings.weight.data, -initrange, initrange)
