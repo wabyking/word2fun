@@ -1,16 +1,15 @@
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-
+import random
 np.random.seed(12345)
 
-from nltk.tokenize import word_tokenize
+# from nltk.tokenize import word_tokenize
 
 def tokenlize(text):
     text =text.lower()
     # print(" ".join(word_tokenize(text))) word_tokenize(text)
     return text.split()
-
 
 class DataReader:
     NEGATIVE_TABLE_SIZE = 1e8
@@ -60,10 +59,19 @@ class DataReader:
     def initTableDiscards(self):
         t = 0.0001
         f = np.array(list(self.word_frequency.values())) / self.token_count
+
         self.discards = np.sqrt(t / f) + (t / f)
+        # print(f)
+        # print(self.discards)
+        # print(self.word_frequency.keys())
+        with open("downsampling-{}.txt".format(t),"w",encoding="utf-8") as ff:
+            for i, (k,v) in enumerate(self.word_frequency.items()):
+                line = "{}: {} : p : {} - {} \n".format(self.id2word[k],v,f[i], self.discards[i])
+                ff.write(line)
+        # exit()
 
     def initTableNegatives(self):
-        pow_frequency = np.array(list(self.word_frequency.values())) ** 0.5
+        pow_frequency = np.array(list(self.word_frequency.values())) ** 0.5 # 0.5 originally
         words_pow = sum(pow_frequency)
         ratio = pow_frequency / words_pow
         count = np.round(ratio * DataReader.NEGATIVE_TABLE_SIZE)
@@ -83,9 +91,10 @@ class DataReader:
 # -----------------------------------------------------------------------------------------------------------------
 
 class Word2vecDataset(Dataset):
-    def __init__(self, data, input_text = None, window_size= 5):
+    def __init__(self, data, input_text = None, window_size= 5, max_examples = 10000):
         self.data = data
         self.window_size = window_size
+        self.max_examples = max_examples
         if input_text is None:
             self.input_file = open(data.input_text, encoding="utf8")
         else:
@@ -115,6 +124,10 @@ class Word2vecDataset(Dataset):
 
     @staticmethod
     def collate(batches):
+        if len(batches) > 26000:
+            indexs = random.sample(range(len(batches)), 26000)
+            batches = batches[indexs]
+
         all_u = [u for batch in batches for u, _, _ in batch if len(batch) > 0]
         all_v = [v for batch in batches for _, v, _ in batch if len(batch) > 0]
         all_neg_v = [neg_v for batch in batches for _, _, neg_v in batch if len(batch) > 0]
@@ -123,8 +136,9 @@ class Word2vecDataset(Dataset):
 
 
 class TimestampledWord2vecDataset(Dataset):
-    def __init__(self, data, input_text = None, window_size=5, time_scale = 1):
+    def __init__(self, data, input_text = None, window_size=5, time_scale = 1,in_batch_negative=0):
         self.data = data
+        self.in_batch_negative = in_batch_negative
         self.window_size = window_size
         # self.input_file = open(data.inputFileName, encoding="utf8")
         self.time_scale = time_scale
@@ -157,9 +171,12 @@ class TimestampledWord2vecDataset(Dataset):
                                 w in self.data.word2id and np.random.rand() < self.data.discards[self.data.word2id[w]]]
 
                     boundary = np.random.randint(1, self.window_size)
-                    
-                    return [(u, v, self.data.getNegatives(v, 5),time) for i, u in enumerate(word_ids) for j, v in
-                            enumerate(word_ids[max(i - boundary, 0):i + boundary]) if u != v]
+                    if self.in_batch_negative:
+                        return [(u, v, None ,time) for i, u in enumerate(word_ids) for j, v in
+                                enumerate(word_ids[max(i - boundary, 0):i + boundary]) if u != v]
+                    else:
+                        return [(u, v, self.data.getNegatives(v, 5), time) for i, u in enumerate(word_ids) for j, v in
+                                enumerate(word_ids[max(i - boundary, 0):i + boundary]) if u != v]
                     # for i, u in enumerate(word_ids):
                     #     for j, v in enumerate(word_ids[max(i - boundary, 0):i + boundary]):
                     #         if u != v:
@@ -171,10 +188,26 @@ class TimestampledWord2vecDataset(Dataset):
     @staticmethod
     def collate(batches):
 
-        all_u = [u for batch in batches for u, _, _, _ in batch if len(batch) > 0]
-        all_v = [v for batch in batches for _, v, _,_ in batch if len(batch) > 0]
-        all_neg_v = [neg_v for batch in batches for _, _, neg_v,_ in batch if len(batch) > 0]
-        time = [time for batch in batches for _, _, _ ,time in batch if len(batch) > 0]
+        examples = [(u, v, neg, time) for batch in batches for u, v, neg, time in batch if len(batch) > 0]
+        all_u = [u  for u, _, _, _ in examples ]
+        all_v = [v  for _, v, _,_ in examples ]
+        all_neg_v = [neg_v  for _, _, neg_v,_ in examples ]
+        time = [time  for _, _, _ ,time in examples ]
         
         return torch.LongTensor(all_u), torch.LongTensor(all_v), torch.LongTensor(all_neg_v),torch.LongTensor(time)
+
+    @staticmethod
+    def collate_in_batch_negative(batches):
+
+        examples = [(u, v, neg, time) for batch in batches for u, v, neg, time in batch if len(batch) > 0]
+        if len(examples) > 20000:
+            pre = len(examples)
+            examples = random.sample(examples, 20000)
+            print("truncated examples from {} to {}".format(pre, len(examples)))
+
+        all_u = [u for u, _, _, _ in examples]
+        all_v = [v for _, v, _, _ in examples]
+        time = [time for _, _, _, time in examples]
+
+        return torch.LongTensor(all_u), torch.LongTensor(all_v), None, torch.LongTensor(time)
 
